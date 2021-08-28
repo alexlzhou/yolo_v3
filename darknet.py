@@ -192,4 +192,5 @@ class Darknet(nn.Module):
 model = Darknet("cfg/yolov3.cfg")
 input_ = get_test_input()
 prediction = model(input_, torch.cuda.is_available())
+print(prediction.size())
 print(prediction)

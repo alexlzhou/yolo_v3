@@ -9,15 +9,19 @@ import torch.nn.functional as F
 
 
 def predict_transform(prediction, in_dim, anchors, num_classes, CUDA=True):
-    prediction = prediction.cuda()
+    # print(prediction.size(), in_dim, anchors, num_classes)
+
+    if CUDA:
+        prediction = prediction.cuda()
 
     batch_size = prediction.size(0)
     stride = in_dim // prediction.size(2)
-    grid_size = in_dim // stride
+    # grid_size = in_dim // stride
+    grid_size = prediction.size(2)
     bbox_attrs = 5 + num_classes
     num_anchors = len(anchors)
 
-    print(batch_size, stride, grid_size, bbox_attrs, num_anchors)
+    # print(batch_size, stride, grid_size, bbox_attrs, num_anchors)
 
     prediction = prediction.view(batch_size, bbox_attrs * num_anchors, grid_size * grid_size)
     prediction = prediction.transpose(1, 2).contiguous()
