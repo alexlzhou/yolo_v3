@@ -180,7 +180,7 @@ class Darknet(nn.Module):
                     bn_running_mean = torch.from_numpy(weights[ptr:ptr + num_bn_biases])
                     ptr += num_bn_biases
 
-                    bn_running_var = torch.from_numpy(weights[ptr])
+                    bn_running_var = torch.from_numpy(weights[ptr:ptr + num_bn_biases])
                     ptr += num_bn_biases
 
                     bn_biases = bn_biases.view_as(bn.bias.data)
@@ -254,7 +254,7 @@ class Darknet(nn.Module):
         return detections
 
 
-model = Darknet("cfg/yolov3.cfg")
+model = Darknet('cfg/yolov3.cfg')
 model.load_weights('yolov3.weights')
 input_ = get_test_input()
 prediction = model(input_, torch.cuda.is_available())
