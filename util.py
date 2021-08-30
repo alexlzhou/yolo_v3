@@ -98,7 +98,43 @@ def write_results(prediction, confidence, num_classes, nms_conf=0.4):
         img_classes = unique(image_pred_[:, -1])
 
         for cls in img_classes:
+            cls_mask = image_pred_ * (image_pred_[:, -1] == cls).float().unsqueeze(1)
+            class_mask_ind = torch.nonzero(cls_mask[:, -2]).squeeze()
+            image_pred_class = image_pred_[class_mask_ind].view(-1, 7)
 
+            conf_sort_index = torch.sort(image_pred_class[:, 4], descending=True)[1]
+            image_pred_class = image_pred_class[conf_sort_index]
+            idx = image_pred_class.size(0)
+
+            for i in range(idx):
+                try:
+                    ious = bbox_iou(image_pred_class[i].unsqueeze(0), image_pred_class[i + 1:])
+                except ValueError:
+                    break
+
+                except IndexError:
+                    break
+
+                iou_mask = (ious < nms_conf).float().unsqueeze(1)
+                image_pred_class[i + 1:] *= iou_mask
+
+                non_zero_ind = torch.nonzero(image_pred_class[:, 4]).squeeze()
+                image_pred_class = image_pred_class[non_zero_ind].view(-1, 7)
+
+                batch_ind = image_pred_class.new(image_pred_class.size(0), 1).fill_(ind)
+                seq = batch_ind, image_pred_class
+
+                if not write:
+                    output = torch.cat(seq, 1)
+                    write = True
+                else:
+                    out = torch.cat(seq, 1)
+                    output = torch.cat((output, out))
+
+    try:
+        return output
+    except:
+        return 0
 
 
 def unique(tensor):
@@ -109,3 +145,23 @@ def unique(tensor):
     tensor_res = tensor.new(unique_tensor.shape)
     tensor_res.copy_(unique_tensor)
     return tensor_res
+
+
+def bbox_iou(box1, box2):
+    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+
+    inter_rect_x1 = torch.max(b1_x1, b2_x1)
+    inter_rect_y1 = torch.max(b1_y1, b2_y1)
+    inter_rect_x2 = torch.min(b1_x2, b2_x2)
+    inter_rect_y2 = torch.min(b1_y2, b2_y2)
+
+    inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1 + 1, min=0) * torch.clamp(inter_rect_y2 - inter_rect_y1 + 1,
+                                                                                     min=0)
+
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+
+    iou = inter_area / (b1_area + b2_area - inter_area)
+
+    return iou
